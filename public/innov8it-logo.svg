@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Innov8IT logo</title>
+  <desc id="desc">A teal, blue, and gold infinity mark inside a white circle.</desc>
+  <defs>
+    <linearGradient id="left" x1="30" y1="70" x2="145" y2="190" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#18b7be" />
+      <stop offset="1" stop-color="#0074b9" />
+    </linearGradient>
+    <linearGradient id="right" x1="112" y1="178" x2="225" y2="72" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1aa9b0" />
+      <stop offset=".42" stop-color="#f4b52b" />
+      <stop offset="1" stop-color="#ffad08" />
+    </linearGradient>
+  </defs>
+  <circle cx="128" cy="128" r="127" fill="#fff" />
+  <path d="M128 128C103 91 85 69 58 69c-30 0-49 25-49 59s19 59 49 59c27 0 45-22 70-59Z" fill="none" stroke="url(#left)" stroke-width="25" stroke-linecap="round" />
+  <path d="M128 128c25 37 43 59 70 59 30 0 49-25 49-59s-19-59-49-59c-27 0-45 22-70 59Z" fill="none" stroke="url(#right)" stroke-width="25" stroke-linecap="round" />
+</svg>
