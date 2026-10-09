@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { getPrisma } from "@/lib/prisma";
 
 const schema = z.object({
   taskId: z.string().uuid(),
@@ -34,32 +33,24 @@ export async function addComment(form: FormData) {
     .single();
   if (taskError || !task) redirect(`${targetPath}?notice=${encodeURIComponent("Unable to find this task.")}`);
 
-  try {
-    const prisma = getPrisma();
-    await Promise.all([
-      prisma.comment.create({
-        data: {
-          taskId: task.id,
-          userId: user.id,
-          content: parsed.data.content,
-          mentions,
-          attachmentUrl: parsed.data.attachmentUrl || null,
-        },
-      }),
-      prisma.activityLog.create({
-        data: { taskId: task.id, userId: user.id, action: "added a comment" },
-      }),
-      prisma.notification.create({
-        data: {
-          userId: user.id,
-          title: "New comment added",
-          message: `A comment was added to your task: ${parsed.data.content.slice(0, 120)}`,
-        },
-      }),
-    ]);
-  } catch {
+  const { error: commentError } = await supabase.from("comments").insert({
+    task_id: task.id,
+    user_id: user.id,
+    content: parsed.data.content,
+    mentions,
+    attachment_url: parsed.data.attachmentUrl || null,
+  });
+  if (commentError) {
     redirect(`${targetPath}?notice=${encodeURIComponent("Unable to save comment to the database.")}`);
   }
+  await Promise.all([
+    supabase.from("activity_logs").insert({ task_id: task.id, user_id: user.id, action: "added a comment" }),
+    supabase.from("notifications").insert({
+      user_id: user.id,
+      title: "New comment added",
+      message: `A comment was added to your task: ${parsed.data.content.slice(0, 120)}`,
+    }),
+  ]);
   revalidatePath("/dashboard", "layout");
   revalidatePath("/dashboard/tasks");
   revalidatePath("/dashboard/board");

@@ -18,12 +18,26 @@ The welcome page runs without external services. To configure Supabase, copy `.e
 - `DATABASE_URL`: Supabase transaction pooler connection for runtime queries; include `sslmode=require`.
 - `DIRECT_URL`: direct database connection or session pooler connection for migrations, using port 5432.
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: public project URL and anon key.
+- `NEXT_PUBLIC_ADMIN_PORTAL_URL`: standalone admin app origin used by the workspace Admin link; defaults to `http://localhost:3001` locally.
 - `APP_URL`: canonical application origin, such as `http://localhost:3000` locally or `https://tasks.example.com` in production. Required for production confirmation and OAuth redirects.
 - `SUPABASE_SERVICE_ROLE_KEY`: server-only Supabase service-role key required for account deletion. Never expose it to client code or commit it.
 
 For Google sign-in, enable the Google provider in Supabase Authentication -> Providers and add the Supabase callback URL shown there to Google Cloud Console. The application callback is `${APP_URL}/auth/callback`; add the Supabase project OAuth callback URL (usually `https://<project-ref>.supabase.co/auth/v1/callback`) as the Google authorized redirect URI. Add the application origin to Supabase Authentication -> URL Configuration.
 
 For local development, set `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` (or `.env`) after copying it from Supabase Project Settings → API. Restart the Next.js server after changing environment variables. Use the service-role key only on the server; never use it as a `NEXT_PUBLIC_*` variable.
+
+## Standalone Admin Portal
+
+The admin portal lives in `admin-portal/` and runs independently from the workspace app on port 3001. It reuses Clerk accounts and reads/writes the same Supabase project, but it has its own app origin, routes, and sign-in flow. Its launcher loads `admin-portal/.env.local` first and then the workspace root `.env.local`; do not copy service-role credentials into source files.
+
+```sh
+npm run admin:install
+npm run admin:dev
+```
+
+Open http://localhost:3001. Set `NEXT_PUBLIC_ADMIN_PORTAL_URL` in the workspace `.env.local` if the portal uses a different origin. Only profiles with the `OWNER` or `ADMIN` role in `public.users` can use the portal.
+
+The admin overview includes system metrics and a completed-task leaderboard. Admin navigation also provides all-workspace project and task management (including assignment, editing, archiving, and deletion), list and Kanban task views with drag-and-drop status updates, task progress and activity monitoring, a due-date calendar with pending-task reminders to assignees, task analytics, user management with live online status, and account/calendar preferences. The admin header notification bell shows the signed-in admin's latest notifications and supports marking them as read.
 
 Database clients are initialized on use, so missing credentials do not prevent the static welcome page from building. Database access uses the Node.js runtime. Prisma connects directly to PostgreSQL and does not automatically apply Supabase user authorization; feature implementation must enforce authorization before accessing data.
 Run `supabase/schema.sql` after configuring Supabase to create the database tables, RLS policies, and the public `avatars` storage bucket used by profile pictures.

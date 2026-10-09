@@ -4,6 +4,7 @@ import { requireUser } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { deadlineStyles, getDeadlineState } from "@/lib/deadline";
+import { formatPhilippineDateTime, getPhilippineDateKey, getPhilippineTodayKey, philippineDateToUtcStart } from "@/lib/time";
 
 export const metadata = { title: "Calendar" };
 export const dynamic = "force-dynamic";
@@ -16,8 +17,8 @@ type CalendarTask = { id: string; title: string; status: TaskStatus; priority: "
 
 function monthKey(year: number, month: number) { return `${year}-${String(month + 1).padStart(2, "0")}`; }
 function dateKey(year: number, month: number, day: number) { return `${monthKey(year, month)}-${String(day).padStart(2, "0")}`; }
-function parseMonth(value: string | undefined) { const fallback = new Date(); const fallbackValue = { year: fallback.getUTCFullYear(), month: fallback.getUTCMonth() }; if (!value) return fallbackValue; const match = /^(\d{4})-(\d{2})$/.exec(value); if (!match) return fallbackValue; const year = Number(match[1]); const month = Number(match[2]); if (month < 1 || month > 12 || year < 2000 || year > 2100) return fallbackValue; return { year, month: month - 1 }; }
-function formatDate(value: string) { return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(value)); }
+function parseMonth(value: string | undefined) { const [fallbackYear, fallbackMonth] = getPhilippineTodayKey().split("-").map(Number); const fallbackValue = { year: fallbackYear, month: fallbackMonth - 1 }; if (!value) return fallbackValue; const match = /^(\d{4})-(\d{2})$/.exec(value); if (!match) return fallbackValue; const year = Number(match[1]); const month = Number(match[2]); if (month < 1 || month > 12 || year < 2000 || year > 2100) return fallbackValue; return { year, month: month - 1 }; }
+function formatDate(value: string) { return formatPhilippineDateTime(value); }
 function href(month: string, status?: string) { const params = new URLSearchParams({ month }); if (status) params.set("status", status); return `/dashboard/calendar?${params.toString()}`; }
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ month?: string; status?: string }> }) {
@@ -26,21 +27,24 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const { year, month } = parseMonth(params.month);
   const selectedStatus = ["TODO", "IN_PROGRESS", "REVIEW", "DONE"].includes(params.status ?? "") ? params.status as TaskStatus : undefined;
   const supabase = await createClient({ readOnly: true });
-  const selectedMonthStart = new Date(Date.UTC(year, month, 1));
-  const selectedMonthEnd = new Date(Date.UTC(year, month + 1, 1));
-  const today = new Date();
-  const todayStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
+  const todayKey = getPhilippineTodayKey();
+  const today = new Date(`${todayKey}T00:00:00Z`);
+  const tomorrowDate = new Date(`${todayKey}T00:00:00Z`);
+  tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+  const tomorrowKey = tomorrowDate.toISOString().slice(0, 10);
+  const todayStart = philippineDateToUtcStart(todayKey);
+  const tomorrowStart = philippineDateToUtcStart(tomorrowKey);
+  const nextMonthDate = new Date(Date.UTC(year, month + 1, 1));
+  const selectedMonthStart = philippineDateToUtcStart(`${monthKey(year, month)}-01`);
+  const selectedMonthEnd = philippineDateToUtcStart(`${monthKey(nextMonthDate.getUTCFullYear(), nextMonthDate.getUTCMonth())}-01`);
   const [{ data, error }, { count: dueToday }, { count: overdue }] = await Promise.all([
-    supabase.from("tasks").select("id, title, status, priority, due_date").gte("due_date", selectedMonthStart.toISOString()).lt("due_date", selectedMonthEnd.toISOString()).order("due_date", { ascending: true }),
-    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").gte("due_date", todayStart.toISOString()).lt("due_date", tomorrowStart.toISOString()),
-    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").lt("due_date", todayStart.toISOString()),
+    supabase.from("tasks").select("id, title, status, priority, due_date").gte("due_date", selectedMonthStart).lt("due_date", selectedMonthEnd).order("due_date", { ascending: true }),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").gte("due_date", todayStart).lt("due_date", tomorrowStart),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").lt("due_date", todayStart),
   ]);
   const tasks = (data ?? []) as CalendarTask[];
   const selectedMonth = monthKey(year, month);
-  const monthTasks = tasks.filter((task) => typeof task.due_date === "string" && task.due_date.startsWith(selectedMonth) && (!selectedStatus || task.status === selectedStatus));
-  const todayKey = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, "0")}-${String(today.getUTCDate()).padStart(2, "0")}`;
+  const monthTasks = tasks.filter((task) => getPhilippineDateKey(task.due_date).startsWith(selectedMonth) && (!selectedStatus || task.status === selectedStatus));
   const completed = monthTasks.filter((task) => task.status === "DONE").length;
   const monthName = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(year, month, 1)));
   const leadingDays = new Date(Date.UTC(year, month, 1)).getUTCDay();
@@ -48,10 +52,10 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const cells: (number | null)[] = Array.from({ length: leadingDays + daysInMonth }, (_, index) => index < leadingDays ? null : index - leadingDays + 1);
   while (cells.length % 7 !== 0) cells.push(null);
   const tasksByDay = new Map<string, CalendarTask[]>();
-  monthTasks.forEach((task) => { const key = task.due_date.slice(0, 10); tasksByDay.set(key, [...(tasksByDay.get(key) ?? []), task]); });
+  monthTasks.forEach((task) => { const key = getPhilippineDateKey(task.due_date); tasksByDay.set(key, [...(tasksByDay.get(key) ?? []), task]); });
   const previous = new Date(Date.UTC(year, month - 1, 1));
   const next = new Date(Date.UTC(year, month + 1, 1));
-  const agenda = monthTasks.filter((task) => task.due_date.slice(0, 10) >= todayKey).slice(0, 8);
+  const agenda = monthTasks.filter((task) => getPhilippineDateKey(task.due_date) >= todayKey).slice(0, 8);
 
   return <div className="space-y-8">
     <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><p className="mb-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Workspace planning</p><h1 className="text-3xl font-semibold tracking-tight">Calendar</h1><p className="mt-2 text-sm text-muted-foreground">Plan deadlines, spot risk, and open work directly from the date it matters.</p></div><Link href="/dashboard/tasks#new-task" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90">Add task with due date</Link></div>

@@ -25,7 +25,6 @@ vi.mock("next/navigation", () => ({
 
 import { createTask, updateAssigneeProgress, updateTask } from "@/features/tasks/actions";
 import { addComment } from "@/features/tasks/comments";
-
 const user = { id: "11111111-1111-4111-8111-111111111111" };
 const taskId = "22222222-2222-4222-8222-222222222222";
 const projectId = "33333333-3333-4333-8333-333333333333";
@@ -151,7 +150,7 @@ describe("task detail actions", () => {
           description: "Updated description",
           status: "IN_PROGRESS",
           priority: "HIGH",
-          dueDate: "2026-09-20",
+          dueDate: "2026-09-20T13:45",
           returnTo: `/dashboard/tasks/${taskId}`,
         }),
       ),
@@ -164,9 +163,14 @@ describe("task detail actions", () => {
       description: "Updated description",
       status: "IN_PROGRESS",
       priority: "HIGH",
-      due_date: "2026-09-19T16:00:00.000Z",
+      due_date: "2026-09-20T05:45:00.000Z",
     });
     expect(inserted.activity_logs).toHaveLength(5);
+    expect(inserted.activity_logs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: expect.stringContaining("1:45 PM") }),
+      ]),
+    );
     expect(inserted.notifications).toEqual([
       {
         user_id: user.id,

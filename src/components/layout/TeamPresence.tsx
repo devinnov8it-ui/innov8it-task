@@ -29,30 +29,35 @@ export function TeamPresence({
   useEffect(() => {
     setMounted(true);
     const supabase = createClient();
-    const channelName = workspaceId === "system-presence" ? "system-presence" : `workspace-presence:${workspaceId}`;
-    const channel = supabase.channel(channelName, {
+    const channelNames = [...new Set([
+      "system-presence",
+      workspaceId === "system-presence" ? "system-presence" : `workspace-presence:${workspaceId}`,
+    ])];
+    const channels = channelNames.map((name) => supabase.channel(name, {
       config: { presence: { key: userId } },
-    });
+    }));
     const syncPresence = () => {
-      const state = channel.presenceState<Presence>();
       const ids = new Set(
-        Object.values(state).flatMap((entries) => entries.map((entry) => entry.user_id)),
+        channels.flatMap((channel) => Object.values(channel.presenceState<Presence>())
+          .flatMap((entries) => entries.map((entry) => entry.user_id))),
       );
       setOnlineIds(ids);
     };
 
-    channel
-      .on("presence", { event: "sync" }, syncPresence)
-      .on("presence", { event: "join" }, syncPresence)
-      .on("presence", { event: "leave" }, syncPresence);
-    channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED") {
-        await channel.track({ user_id: userId, name: userName, avatar: userAvatar });
-      }
-    });
+    for (const channel of channels) {
+      channel
+        .on("presence", { event: "sync" }, syncPresence)
+        .on("presence", { event: "join" }, syncPresence)
+        .on("presence", { event: "leave" }, syncPresence);
+      channel.subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ user_id: userId, name: userName, avatar: userAvatar });
+        }
+      });
+    }
 
     return () => {
-      void supabase.removeChannel(channel);
+      void Promise.all(channels.map((channel) => supabase.removeChannel(channel)));
     };
   }, [workspaceId, userId, userName, userAvatar]);
 

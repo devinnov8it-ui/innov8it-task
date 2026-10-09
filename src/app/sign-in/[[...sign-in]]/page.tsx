@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
 import { DeletedSessionRecovery } from "@/features/auth/components/DeletedSessionRecovery";
 import { getAppOrigin } from "@/features/auth/config";
@@ -52,6 +53,9 @@ export default async function SignInPage({
         ) : (
           <SignIn forceRedirectUrl={redirectUrl} />
         )}
+        <p className="text-center text-sm text-muted-foreground">
+          Administrator? <Link href="/admin/sign-in" className="font-medium text-primary hover:underline">Admin portal sign in</Link>
+        </p>
       </div>
     </div>
   );

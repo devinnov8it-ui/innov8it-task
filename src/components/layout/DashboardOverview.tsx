@@ -19,7 +19,7 @@ import { requireUser } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { deadlineStyles, getDeadlineState } from "@/lib/deadline";
-import { formatPhilippineDate } from "@/lib/time";
+import { formatPhilippineDateTime, getPhilippineTodayKey, philippineDateToUtcStart } from "@/lib/time";
 
 type DashboardTask = {
   id: string;
@@ -51,7 +51,7 @@ const priorityStyles = { LOW: "text-muted-foreground", MEDIUM: "text-primary", H
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Just now";
-  return formatPhilippineDate(date);
+  return formatPhilippineDateTime(date);
 }
 
 function actorName(user: DashboardActivity["user"]) {
@@ -70,22 +70,24 @@ export async function DashboardOverview({ error, preview = false }: { error?: st
 
   const user = await requireUser();
   const supabase = await createClient({ readOnly: true });
-  const now = new Date();
-  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setUTCDate(tomorrowStart.getUTCDate() + 1);
-  const weekStart = new Date(todayStart);
-  weekStart.setUTCDate(weekStart.getUTCDate() - ((todayStart.getUTCDay() + 6) % 7));
-  const iso = (date: Date) => date.toISOString();
+  const todayKey = getPhilippineTodayKey();
+  const todayDate = new Date(`${todayKey}T00:00:00Z`);
+  const tomorrowDate = new Date(todayDate);
+  tomorrowDate.setUTCDate(tomorrowDate.getUTCDate() + 1);
+  const weekStartDate = new Date(todayDate);
+  weekStartDate.setUTCDate(weekStartDate.getUTCDate() - ((weekStartDate.getUTCDay() + 6) % 7));
+  const todayStart = philippineDateToUtcStart(todayKey);
+  const tomorrowStart = philippineDateToUtcStart(tomorrowDate.toISOString().slice(0, 10));
+  const weekStart = philippineDateToUtcStart(weekStartDate.toISOString().slice(0, 10));
 
   const [
     { count: dueTodayCount }, { count: overdueCount }, { count: completedWeekCount },
     { count: activeTaskCount }, { count: projectCount }, { data: myTaskRows },
     { data: upcomingRows }, { data: activityRows },
   ] = await Promise.all([
-    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").gte("due_date", iso(todayStart)).lt("due_date", iso(tomorrowStart)),
-    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").lt("due_date", iso(todayStart)),
-    supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "DONE").gte("updated_at", iso(weekStart)),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").gte("due_date", todayStart).lt("due_date", tomorrowStart),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE").lt("due_date", todayStart),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "DONE").gte("updated_at", weekStart),
     supabase.from("tasks").select("id", { count: "exact", head: true }).neq("status", "DONE"),
     supabase.from("projects").select("id", { count: "exact", head: true }).neq("status", "ARCHIVED"),
     supabase.from("tasks").select("id, title, status, priority, due_date, task_assignees!inner(user_id)").eq("task_assignees.user_id", user.id).neq("status", "DONE").order("due_date", { ascending: true, nullsFirst: false }).limit(6),

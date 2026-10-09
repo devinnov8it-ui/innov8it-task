@@ -5,8 +5,7 @@ import { deleteTask, updateAssigneeProgress, updateTask } from "@/features/tasks
 import { addComment, toggleCommentReaction } from "@/features/tasks/comments";
 import { TaskActivityPanel } from "@/features/tasks/components/TaskActivityPanel";
 import { createClient } from "@/lib/supabase/server";
-import { getPrisma } from "@/lib/prisma";
-import { formatPhilippineDate, getPhilippineDateKey } from "@/lib/time";
+import { formatPhilippineDateTime, getPhilippineDateTimeInputValue } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -92,39 +91,40 @@ export default async function TaskDetailPage({
     ? Math.round(assigneeProgress.reduce((total, assignee) => total + assignee.progress, 0) / assigneeProgress.length)
     : 0;
 
-  const prisma = getPrisma();
-  const [commentsData, activityData] = await Promise.all([
-    prisma.comment.findMany({
-      where: { taskId },
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { name: true, avatar: true, email: true } }, reactions: { select: { emoji: true, userId: true } } },
-    }),
-    prisma.activityLog.findMany({
-      where: { taskId },
-      orderBy: { createdAt: "desc" },
-      include: { user: { select: { name: true, avatar: true, email: true } } },
-    }),
+  const [commentsResult, activityResult] = await Promise.all([
+    supabase
+      .from("comments")
+      .select("id, content, created_at, attachment_url, mentions, user:users(name, avatar, email), reactions:comment_reactions(emoji, user_id)")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("activity_logs")
+      .select("id, action, created_at, user:users(name, avatar, email)")
+      .eq("task_id", taskId)
+      .order("created_at", { ascending: false }),
   ]);
+  const commentsData = commentsResult?.data ?? [];
+  const activityData = activityResult?.data ?? [];
 
   const comments = commentsData.map((comment) => ({
     id: comment.id,
     content: comment.content,
-    createdAt: comment.createdAt.toISOString(),
-    user: comment.user,
-    attachmentUrl: comment.attachmentUrl,
-    mentions: comment.mentions,
+    createdAt: comment.created_at,
+    user: (Array.isArray(comment.user) ? comment.user[0] : comment.user) ?? { name: null, avatar: null, email: "" },
+    attachmentUrl: comment.attachment_url,
+    mentions: comment.mentions ?? [],
     reactions: ["👍", "🎉", "❤️", "🚀", "👀"].map((emoji) => ({
       emoji,
       count: comment.reactions.filter((reaction) => reaction.emoji === emoji).length,
-      reacted: comment.reactions.some((reaction) => reaction.emoji === emoji && reaction.userId === currentUser.id),
+      reacted: comment.reactions.some((reaction) => reaction.emoji === emoji && reaction.user_id === currentUser.id),
     })),
   }));
 
   const activity = activityData.map((entry) => ({
     id: entry.id,
     action: entry.action,
-    createdAt: entry.createdAt.toISOString(),
-    user: entry.user,
+    createdAt: entry.created_at,
+    user: (Array.isArray(entry.user) ? entry.user[0] : entry.user) ?? { name: null, avatar: null, email: "" },
   }));
 
   return (
@@ -154,7 +154,7 @@ export default async function TaskDetailPage({
             <span className="rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">{task.priority}</span>
             {task.due_date && (
               <span className="rounded-full border px-2.5 py-1">
-                Due {formatPhilippineDate(task.due_date)}
+                Due {formatPhilippineDateTime(task.due_date)}
               </span>
             )}
           </div>
@@ -297,11 +297,11 @@ export default async function TaskDetailPage({
           </label>
 
           <label className="space-y-2">
-            <span className="text-sm font-medium text-foreground">Due date</span>
+            <span className="text-sm font-medium text-foreground">Due date and time (Manila)</span>
             <input
               name="dueDate"
-              type="date"
-              defaultValue={task.due_date ? getPhilippineDateKey(task.due_date) : ""}
+              type="datetime-local"
+              defaultValue={task.due_date ? getPhilippineDateTimeInputValue(task.due_date) : ""}
               className="min-h-11 w-full rounded-md border bg-background px-3 text-sm"
             />
           </label>
@@ -332,6 +332,7 @@ export default async function TaskDetailPage({
         title={task.title}
         comments={comments}
         activity={activity}
+        dataError={Boolean(commentsResult?.error || activityResult?.error)}
         commentAction={addComment}
         reactionAction={toggleCommentReaction}
       /></div>

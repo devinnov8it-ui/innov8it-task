@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CalendarRange, Columns3, List, Users } from "lucide-react";
 import { KanbanBoard, type BoardTask } from "./KanbanBoard";
 import { deadlineStyles, getDeadlineState } from "@/lib/deadline";
-import { formatPhilippineDate } from "@/lib/time";
+import { formatPhilippineDate, formatPhilippineDateTime, formatPhilippineTime } from "@/lib/time";
 
 type Project = { id: string; name: string };
 type ViewTask = BoardTask;
@@ -24,7 +24,7 @@ const statusClass = { TODO: "bg-primary", IN_PROGRESS: "bg-brand-teal", REVIEW: 
 
 function formatDate(value: string | null) {
   if (!value) return "No due date";
-  return formatPhilippineDate(value);
+  return formatPhilippineDateTime(value);
 }
 
 function ListView({ tasks, todayKey }: { tasks: ViewTask[]; todayKey: string }) {
@@ -33,7 +33,7 @@ function ListView({ tasks, todayKey }: { tasks: ViewTask[]; todayKey: string }) 
       <table className="w-full min-w-[720px] text-left text-sm">
         <thead className="border-b bg-muted/35 text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="px-4 py-3 font-medium">Task</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Priority</th><th className="px-4 py-3 font-medium">Due</th><th className="px-4 py-3 font-medium">Assignees</th><th className="px-4 py-3 font-medium">Progress</th><th className="px-4 py-3" /></tr></thead>
         <tbody className="divide-y">
-          {tasks.map((task) => { const deadline = getDeadlineState(task.dueDate, task.status, todayKey); return <tr key={task.id} className="transition hover:bg-muted/20"><td className="max-w-[300px] px-4 py-3"><Link href={`/dashboard/tasks/${task.id}`} className="font-medium hover:text-primary hover:underline">{task.title}</Link></td><td className="px-4 py-3"><span className="inline-flex items-center gap-2 text-xs"><span className={`size-2 rounded-full ${statusClass[task.status]}`} />{statusLabel[task.status]}</span></td><td className={`px-4 py-3 text-xs font-semibold uppercase ${priorityClass[task.priority]}`}>{task.priority}</td><td className="px-4 py-3"><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold ${deadlineStyles[deadline.state]}`}>{deadline.label}</span></td><td className="max-w-[220px] px-4 py-3 text-xs text-muted-foreground">{task.assignees?.map((assignee) => assignee.name).join(", ") || task.assigneeName || "Unassigned"}</td><td className="px-4 py-3 text-xs text-muted-foreground">{task.progress ?? 0}%</td><td className="px-4 py-3 text-right"><Link href={`/dashboard/tasks/${task.id}`} className="text-xs font-medium text-primary hover:underline">Open</Link></td></tr>; })}
+          {tasks.map((task) => { const deadline = getDeadlineState(task.dueDate, task.status, todayKey); return <tr key={task.id} className="transition hover:bg-muted/20"><td className="max-w-[300px] px-4 py-3"><Link href={`/dashboard/tasks/${task.id}`} className="font-medium hover:text-primary hover:underline">{task.title}</Link></td><td className="px-4 py-3"><span className="inline-flex items-center gap-2 text-xs"><span className={`size-2 rounded-full ${statusClass[task.status]}`} />{statusLabel[task.status]}</span></td><td className={`px-4 py-3 text-xs font-semibold uppercase ${priorityClass[task.priority]}`}>{task.priority}</td><td className="px-4 py-3"><span className={`inline-flex rounded-full border px-2 py-1 text-[10px] font-semibold ${deadlineStyles[deadline.state]}`}>{deadline.label}{task.dueDate ? ` · ${formatPhilippineTime(task.dueDate)}` : ""}</span></td><td className="max-w-[220px] px-4 py-3 text-xs text-muted-foreground">{task.assignees?.map((assignee) => assignee.name).join(", ") || task.assigneeName || "Unassigned"}</td><td className="px-4 py-3 text-xs text-muted-foreground">{task.progress ?? 0}%</td><td className="px-4 py-3 text-right"><Link href={`/dashboard/tasks/${task.id}`} className="text-xs font-medium text-primary hover:underline">Open</Link></td></tr>; })}
         </tbody>
       </table>
       {tasks.length === 0 && <p className="p-8 text-center text-sm text-muted-foreground">No tasks match this view.</p>}

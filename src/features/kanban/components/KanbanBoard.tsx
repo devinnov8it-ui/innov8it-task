@@ -6,7 +6,7 @@ import { useOptimistic, useState, useTransition } from "react";
 import { GripVertical } from "lucide-react";
 import { moveTask } from "../actions";
 import { deadlineStyles, getDeadlineState } from "@/lib/deadline";
-import { formatPhilippineDate } from "@/lib/time";
+import { formatPhilippineDateTime } from "@/lib/time";
 
 export type BoardTask = {
   id: string;
@@ -44,7 +44,7 @@ const priorityClass = {
 };
 
 function shortDate(value: string) {
-  return formatPhilippineDate(value);
+  return formatPhilippineDateTime(value);
 }
 
 function estimateHours(task: BoardTask) {

@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Activity,
   ChartNoAxesCombined,
+  ShieldCheck,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const items = [
   { label: "Activity", icon: Activity, href: "/dashboard/activity" },
   { label: "Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
   { label: "Analytics", icon: ChartNoAxesCombined, href: "/dashboard/analytics" },
+  { label: "Admin", icon: ShieldCheck, href: "/admin", adminOnly: true, external: true },
   { label: "Settings", icon: Settings, href: "/dashboard/settings" },
 ];
 export function Sidebar({
@@ -26,11 +28,13 @@ export function Sidebar({
   onNavigate,
   dashboardHref = "/dashboard",
   teamPresence,
+  isAdmin = false,
 }: {
   collapsed?: boolean;
   onNavigate?: () => void;
   dashboardHref?: "/dashboard" | "/preview";
   teamPresence?: ReactNode;
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   return (
@@ -60,9 +64,9 @@ export function Sidebar({
             Workspace
           </p>
         )}
-        {items.map(({ label, icon: Icon, href: itemHref }) => {
+        {items.filter((item) => !item.adminOnly || isAdmin).map(({ label, icon: Icon, href: itemHref, external }) => {
           const href = itemHref
-            ? itemHref === "/dashboard" ? dashboardHref : itemHref
+            ? itemHref === "/dashboard" ? dashboardHref : itemHref === "/admin" ? process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "http://localhost:3001" : itemHref
             : undefined;
           const content = (
             <>
@@ -82,7 +86,9 @@ export function Sidebar({
               href={href}
               onClick={onNavigate}
               title={collapsed ? label : undefined}
-              aria-current={pathname === href || (href !== dashboardHref && pathname.startsWith(`${href}/`)) ? "page" : undefined}
+              target={external ? "_blank" : undefined}
+              rel={external ? "noreferrer" : undefined}
+              aria-current={!external && (pathname === href || (href !== dashboardHref && pathname.startsWith(`${href}/`))) ? "page" : undefined}
               className={cn(
                 style,
                 pathname === href || (href !== dashboardHref && pathname.startsWith(`${href}/`))

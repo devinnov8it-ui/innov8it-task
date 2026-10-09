@@ -3,7 +3,9 @@ import { requireUser } from "@/features/auth/session";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { TeamPresence } from "@/components/layout/TeamPresence";
+import type { PendingTask } from "@/components/layout/PendingTasksDock";
 import { createClient } from "@/lib/supabase/server";
+import { getPhilippineTodayKey, philippineDateToUtcStart } from "@/lib/time";
 
 export default async function ProtectedLayout({
   children,
@@ -21,7 +23,14 @@ export default async function ProtectedLayout({
   const avatar = typeof metadataAvatar === "string" ? metadataAvatar : undefined;
 
   const supabase = await createClient({ readOnly: true });
-  const [{ data: notifications }, { data: membership }, { data: allUsers }] = await Promise.all([
+  const todayStart = philippineDateToUtcStart(getPhilippineTodayKey());
+  const [
+    { data: notifications },
+    { data: membership },
+    { data: allUsers },
+    { data: reminderTaskRows, count: pendingTaskCount },
+    { count: overdueTaskCount },
+  ] = await Promise.all([
     supabase
       .from("notifications")
       .select("id, title, message, is_read, created_at")
@@ -40,7 +49,21 @@ export default async function ProtectedLayout({
       .select("id, name, email, avatar")
       .order("name", { ascending: true })
       .limit(200),
+    supabase
+      .from("tasks")
+      .select("id, title, status, priority, due_date, task_assignees!inner(user_id)", { count: "exact" })
+      .eq("task_assignees.user_id", user.id)
+      .neq("status", "DONE")
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .limit(4),
+    supabase
+      .from("tasks")
+      .select("id, task_assignees!inner(user_id)", { count: "exact", head: true })
+      .eq("task_assignees.user_id", user.id)
+      .neq("status", "DONE")
+      .lt("due_date", todayStart),
   ]);
+  const reminderTasks = (reminderTaskRows ?? []) as PendingTask[];
   const { data: ownedWorkspace } = membership
     ? { data: null }
     : await supabase
@@ -84,6 +107,10 @@ export default async function ProtectedLayout({
       headerActions={<NotificationBell notifications={notifications ?? []} />}
       teamPresence={<TeamPresence compact workspaceId={presenceWorkspaceId} userId={user.id} userName={name} userAvatar={userAvatar} members={presenceMembers} />}
       realtimeWorkspaceId={workspaceId}
+      reminderTasks={reminderTasks}
+      pendingTaskCount={pendingTaskCount ?? 0}
+      overdueTaskCount={overdueTaskCount ?? 0}
+      isAdmin={user.role === "OWNER" || user.role === "ADMIN"}
     >
       {children}
     </DashboardShell>

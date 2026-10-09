@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/features/auth/session";
 import { createClient } from "@/lib/supabase/server";
-import { philippineDateToUtcStart } from "@/lib/time";
+import { formatPhilippineDateTime, philippineDateTimeToUtc } from "@/lib/time";
 
 const taskSchema = z.object({
   projectId: z.string().uuid(),
@@ -13,7 +13,14 @@ const taskSchema = z.object({
   description: z.string().trim().max(5_000).optional(),
   status: z.enum(["TODO", "IN_PROGRESS", "REVIEW", "DONE"]),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
-  dueDate: z.string().date().optional(),
+  dueDate: z.string().refine((value) => {
+    try {
+      philippineDateTimeToUtc(value);
+      return true;
+    } catch {
+      return false;
+    }
+  }).optional(),
 });
 
 const idSchema = z.string().uuid();
@@ -88,8 +95,8 @@ function buildActivityMessages(before: {
     messages.push(`changed priority from ${before.priority} to ${after.priority}`);
   }
   if ((before.dueDate ?? "") !== (after.dueDate ?? "")) {
-    const beforeDue = before.dueDate ? before.dueDate.slice(0, 10) : "no due date";
-    const afterDue = after.dueDate ? after.dueDate.slice(0, 10) : "no due date";
+    const beforeDue = before.dueDate ? formatPhilippineDateTime(before.dueDate) : "no due date";
+    const afterDue = after.dueDate ? formatPhilippineDateTime(after.dueDate) : "no due date";
     messages.push(`updated the due date from ${beforeDue} to ${afterDue}`);
   }
   if (before.projectId !== after.projectId) {
@@ -120,7 +127,7 @@ export async function createTask(form: FormData) {
     project_id: parsed.data.projectId, title: parsed.data.title,
     description: parsed.data.description ?? null, status: parsed.data.status,
     priority: parsed.data.priority,
-    due_date: parsed.data.dueDate ? philippineDateToUtcStart(parsed.data.dueDate) : null,
+    due_date: parsed.data.dueDate ? philippineDateTimeToUtc(parsed.data.dueDate) : null,
     created_by_id: user.id,
   }).select("id").single();
   if (error || !task) finish("Unable to create task.");
@@ -240,7 +247,7 @@ export async function updateTask(form: FormData) {
     description: parsed.data.description ?? null,
     status: parsed.data.status,
     priority: parsed.data.priority,
-    dueDate: parsed.data.dueDate ? philippineDateToUtcStart(parsed.data.dueDate) : null,
+    dueDate: parsed.data.dueDate ? philippineDateTimeToUtc(parsed.data.dueDate) : null,
     projectId: parsed.data.projectId,
   };
 

@@ -25,6 +25,7 @@ export function TaskActivityPanel({
   title,
   comments,
   activity,
+  dataError = false,
   commentAction,
   reactionAction,
 }: {
@@ -32,6 +33,7 @@ export function TaskActivityPanel({
   title: string;
   comments: TaskComment[];
   activity: TaskActivityEntry[];
+  dataError?: boolean;
   commentAction?: (formData: FormData) => void | Promise<void>;
   reactionAction?: (formData: FormData) => void | Promise<void>;
 }) {
@@ -49,6 +51,12 @@ export function TaskActivityPanel({
           {comments.length} comments
         </span>
       </div>
+
+      {dataError && (
+        <p role="status" className="mt-4 rounded-md border border-destructive/25 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          Some comments or task history could not be loaded. Task details are still available.
+        </p>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.35fr_1fr]">
         <div className="space-y-4">

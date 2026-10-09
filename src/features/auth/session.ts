@@ -16,7 +16,7 @@ export const getCurrentUser = cache(async () => {
   const admin = createAdminClient();
   const { data: existing, error: lookupError } = await admin
     .from("users")
-    .select("id, name, avatar")
+    .select("id, name, avatar, role")
     .eq("email", email)
     .maybeSingle();
   if (lookupError) return null;
@@ -46,7 +46,7 @@ export const getCurrentUser = cache(async () => {
         { id: databaseUser.id, name, email, avatar: user.imageUrl },
         { onConflict: "id" },
       )
-      .select("id, name, avatar")
+      .select("id, name, avatar, role")
       .single();
     if (profileError) return null;
     profile = createdProfile;
@@ -55,6 +55,7 @@ export const getCurrentUser = cache(async () => {
   return {
     id: profile.id,
     email,
+    role: profile.role,
     user_metadata: {
       name: profile.name ?? name ?? undefined,
       avatar_url: profile.avatar ?? user.imageUrl,
@@ -62,9 +63,9 @@ export const getCurrentUser = cache(async () => {
   };
 });
 
-export async function requireUser() {
+export async function requireUser(redirectTo = "/dashboard") {
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in?redirect_url=%2Fdashboard");
+  if (!userId) redirect(`/sign-in?redirect_url=${encodeURIComponent(redirectTo)}`);
 
   let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
   try {

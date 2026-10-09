@@ -7,6 +7,10 @@
   },
   "scripts": {
     "dev": "next dev --turbopack",
+    "admin:install": "npm --prefix admin-portal install",
+    "admin:dev": "npm --prefix admin-portal run dev",
+    "admin:build": "npm --prefix admin-portal run build",
+    "admin:typecheck": "npm --prefix admin-portal run typecheck",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",

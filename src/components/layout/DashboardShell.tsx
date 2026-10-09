@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { UIProvider, useUIStore } from "@/components/providers/UIProvider";
@@ -9,6 +9,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { UserMenu } from "./UserMenu";
 import { QuickActions } from "./QuickActions";
 import { GlobalSearch } from "./GlobalSearch";
+import { PendingTasksDock, TaskReminderControl, type PendingTask } from "./PendingTasksDock";
 import { cn } from "@/lib/utils";
 import { DashboardRealtime } from "@/components/providers/DashboardRealtime";
 
@@ -20,6 +21,10 @@ const pageTitles = [
   ["/dashboard/settings", "Settings"],
 ] as const;
 
+type ExitTarget =
+  | { kind: "link"; href: string }
+  | { kind: "button"; element: HTMLButtonElement };
+
 function Shell({
   children,
   name,
@@ -28,6 +33,10 @@ function Shell({
   headerActions,
   teamPresence,
   realtimeWorkspaceId,
+  reminderTasks = [],
+  pendingTaskCount = 0,
+  overdueTaskCount = 0,
+  isAdmin = false,
   preview = false,
 }: {
   children: ReactNode;
@@ -37,11 +46,19 @@ function Shell({
   headerActions?: ReactNode;
   teamPresence?: ReactNode;
   realtimeWorkspaceId?: string;
+  reminderTasks?: PendingTask[];
+  pendingTaskCount?: number;
+  overdueTaskCount?: number;
+  isAdmin?: boolean;
   preview?: boolean;
 }) {
   const sidebarOpen = useUIStore((state) => state.sidebarOpen);
   const setSidebarOpen = useUIStore((state) => state.setSidebarOpen);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [confirmExitOpen, setConfirmExitOpen] = useState(false);
+  const exitTarget = useRef<ExitTarget | null>(null);
+  const bypassExitGuard = useRef<HTMLButtonElement | null>(null);
+  const router = useRouter();
   const pathname = usePathname();
   const pageTitle = pageTitles.find(([path]) => pathname.startsWith(path))?.[1] ?? "Dashboard";
   useEffect(() => setMobileOpen(false), [pathname]);
@@ -53,8 +70,59 @@ function Shell({
     query.addEventListener("change", closeOnDesktop);
     return () => query.removeEventListener("change", closeOnDesktop);
   }, []);
+
+  const guardAppExit = (event: MouseEvent<HTMLDivElement>) => {
+    if (pendingTaskCount === 0 || !(event.target instanceof Element)) return;
+
+    const exitButton = event.target.closest<HTMLButtonElement>("[data-pending-task-exit]");
+    if (exitButton) {
+      if (bypassExitGuard.current === exitButton) {
+        bypassExitGuard.current = null;
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      exitTarget.current = { kind: "button", element: exitButton };
+      setConfirmExitOpen(true);
+      return;
+    }
+
+    const link = event.target.closest<HTMLAnchorElement>("a[href]");
+    if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
+    const destination = new URL(link.href, window.location.href);
+    const leavesDashboard = destination.origin !== window.location.origin
+      || !destination.pathname.startsWith("/dashboard");
+    if (!leavesDashboard) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    exitTarget.current = { kind: "link", href: destination.href };
+    setConfirmExitOpen(true);
+  };
+
+  const continueExit = () => {
+    const target = exitTarget.current;
+    exitTarget.current = null;
+    setConfirmExitOpen(false);
+    if (!target) return;
+    window.dispatchEvent(new Event("pending-task-exit-confirmed"));
+
+    if (target.kind === "button") {
+      bypassExitGuard.current = target.element;
+      target.element.click();
+      return;
+    }
+
+    const destination = new URL(target.href);
+    if (destination.origin === window.location.origin) {
+      router.push(`${destination.pathname}${destination.search}${destination.hash}`);
+    } else {
+      window.location.assign(destination.href);
+    }
+  };
+
   return (
-    <div className="min-h-svh bg-grid-pattern">
+    <div className="min-h-svh bg-grid-pattern" onClickCapture={guardAppExit}>
       {realtimeWorkspaceId && <DashboardRealtime workspaceId={realtimeWorkspaceId} />}
       <a
         href="#main-content"
@@ -73,7 +141,8 @@ function Shell({
         <Sidebar
           collapsed={!sidebarOpen}
           dashboardHref={preview ? "/preview" : "/dashboard"}
-            teamPresence={teamPresence}
+          teamPresence={teamPresence}
+          isAdmin={isAdmin}
         />
       </aside>
       <div
@@ -119,6 +188,7 @@ function Shell({
                     onNavigate={() => setMobileOpen(false)}
                     dashboardHref={preview ? "/preview" : "/dashboard"}
                     teamPresence={teamPresence}
+                    isAdmin={isAdmin}
                   />
                   <Dialog.Close asChild>
                     <button
@@ -136,6 +206,7 @@ function Shell({
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             {!preview && <GlobalSearch />}
             {headerActions}
+            {!preview && <TaskReminderControl tasks={reminderTasks} pendingTaskCount={pendingTaskCount} overdueTaskCount={overdueTaskCount} />}
             <ThemeToggle />
             <span className="hidden h-7 w-px bg-border sm:block" />
             {preview ? (
@@ -155,6 +226,32 @@ function Shell({
           {children}
         </main>
       </div>
+      <Dialog.Root open={confirmExitOpen} onOpenChange={setConfirmExitOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-[80] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-6 shadow-2xl">
+            <Dialog.Title className="text-lg font-semibold">Leave with tasks unfinished?</Dialog.Title>
+            <Dialog.Description className="mt-2 text-sm leading-6 text-muted-foreground">
+              You have {pendingTaskCount} unfinished task{pendingTaskCount === 1 ? "" : "s"} assigned to you
+              {overdueTaskCount > 0
+                ? `, including ${overdueTaskCount} overdue task${overdueTaskCount === 1 ? "" : "s"}.`
+                : "."}
+              {" "}Would you like to stay and review them?
+            </Dialog.Description>
+            <div className="mt-6 flex justify-end gap-3">
+              <Dialog.Close asChild>
+                <button type="button" className="min-h-10 rounded-md border px-4 text-sm font-medium hover:bg-muted">
+                  Stay here
+                </button>
+              </Dialog.Close>
+              <button type="button" onClick={continueExit} className="min-h-10 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90">
+                Continue
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      {!preview && <PendingTasksDock tasks={reminderTasks} pendingTaskCount={pendingTaskCount} overdueTaskCount={overdueTaskCount} />}
       {!preview && <QuickActions />}
     </div>
   );
@@ -167,6 +264,10 @@ export function DashboardShell(props: {
   headerActions?: ReactNode;
   teamPresence?: ReactNode;
   realtimeWorkspaceId?: string;
+  reminderTasks?: PendingTask[];
+  pendingTaskCount?: number;
+  overdueTaskCount?: number;
+  isAdmin?: boolean;
   preview?: boolean;
 }) {
   return (
