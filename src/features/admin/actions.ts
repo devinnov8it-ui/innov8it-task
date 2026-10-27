@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/features/auth/session";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, findAuthUserByEmail } from "@/lib/supabase/admin";
 
 const userIdSchema = z.string().uuid();
 const roleSchema = z.enum(["OWNER", "ADMIN", "MEMBER"]);
@@ -84,8 +84,8 @@ export async function deleteAdminUser(form: FormData): Promise<void> {
     if (error || (count ?? 0) < 2) redirectUserError("The last OWNER account can’t be deleted.");
   }
 
-  const { data: authRecord, error: authLookupError } = await admin.auth.admin.getUserByEmail(target.email);
-  if (authLookupError || !authRecord.user) redirectUserError("The linked Supabase account could not be found; nothing was deleted.");
+  const { user: authUser, error: authLookupError } = await findAuthUserByEmail(admin, target.email);
+  if (authLookupError || !authUser) redirectUserError("The linked Supabase account could not be found; nothing was deleted.");
 
   let clerk;
   try {
@@ -98,7 +98,7 @@ export async function deleteAdminUser(form: FormData): Promise<void> {
     redirectUserError("The sign-in account could not be deleted. Nothing else was changed.");
   }
 
-  const { error: deleteError } = await admin.auth.admin.deleteUser(authRecord.user.id);
+  const { error: deleteError } = await admin.auth.admin.deleteUser(authUser.id);
   if (deleteError) {
     console.error("Admin account deletion left a Supabase account after Clerk deletion", {
       userId: target.id,

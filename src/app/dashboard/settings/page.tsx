@@ -16,9 +16,9 @@ export default async function SettingsPage({
 }) {
   const user = await requireUser();
   const params = await searchParams;
-  const metadataName = user.user_metadata?.name ?? user.user_metadata?.full_name;
+  const metadataName = user.user_metadata?.name;
   const name = typeof metadataName === "string" ? metadataName : "";
-  const metadataAvatar = user.user_metadata?.avatar_url ?? user.user_metadata?.picture;
+  const metadataAvatar = user.user_metadata?.avatar_url;
   const avatar = typeof metadataAvatar === "string" ? metadataAvatar : "";
   const deletionErrorCode = params.error?.startsWith("delete-")
     ? decodeURIComponent(params.error.slice("delete-".length)).replace(/[^a-zA-Z0-9_-]/g, "")

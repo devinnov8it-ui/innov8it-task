@@ -53,7 +53,7 @@ function TimelineView({ tasks }: { tasks: ViewTask[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between text-xs text-muted-foreground"><span>{formatPhilippineDate(start)}</span><span>Project horizon</span><span>{formatPhilippineDate(end)}</span></div>
+      <div className="flex items-center justify-between text-xs text-muted-foreground"><span>{formatPhilippineDate(new Date(start))}</span><span>Project horizon</span><span>{formatPhilippineDate(new Date(end))}</span></div>
       <div className="overflow-x-auto rounded-xl border p-4"><div className="min-w-[680px] space-y-3">{tasks.map((task) => { const due = task.dueDate ? new Date(task.dueDate).getTime() : end; const left = task.dueDate ? Math.max(0, ((due - start) / span) * 100) : 0; const width = task.dueDate ? Math.max(8, 100 - left) : 12; return <div key={task.id} className="grid grid-cols-[minmax(160px,220px)_1fr] items-center gap-4"><Link href={`/dashboard/tasks/${task.id}`} className="truncate text-sm font-medium hover:text-primary hover:underline">{task.title}</Link><div className="relative h-8 rounded-md bg-muted/45"><span className={`absolute top-1 h-6 rounded-md ${statusClass[task.status]} opacity-80`} style={{ left: `${left}%`, width: `${Math.min(width, 100 - left)}%` }} /><span className="absolute inset-y-0 flex items-center px-2 text-[11px] font-medium text-foreground">{task.dueDate ? formatDate(task.dueDate) : "Unscheduled"}</span></div></div>; })}{tasks.length === 0 && <p className="py-8 text-center text-sm text-muted-foreground">No tasks to plot yet.</p>}</div></div>
     </div>
   );

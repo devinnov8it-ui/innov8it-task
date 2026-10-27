@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminClient, findAuthUserByEmail } from "@/lib/supabase/admin";
 import { requireUser } from "./session";
 import { getAppOrigin } from "./config";
 import {
@@ -198,7 +198,8 @@ export async function register(
     const { name, email, password } = parsed.data;
 
     const admin = createAdminClient();
-    const { data: existingUser, error: existingUserError } = await admin.auth.admin.getUserByEmail(email);
+    const { user: existingUser, error: existingUserError } =
+      await findAuthUserByEmail(admin, email);
     if (existingUserError) {
       console.error("Supabase duplicate-email lookup failed", {
         status: existingUserError.status,
@@ -206,7 +207,7 @@ export async function register(
       });
       return unavailable;
     }
-    if (existingUser?.user) {
+    if (existingUser) {
       return {
         status: "success",
         message: "An account with this email already exists. Please sign in instead.",
@@ -346,18 +347,21 @@ export async function deleteAccount(form: FormData): Promise<void> {
     redirect("/dashboard/settings?error=delete");
   }
 
-  let admin;
+  let admin: ReturnType<typeof createAdminClient>;
   try {
     admin = createAdminClient();
     const email = user.email?.trim();
-    const getUserByEmail = typeof admin.auth?.admin?.getUserByEmail === "function"
-      ? admin.auth.admin.getUserByEmail.bind(admin.auth.admin)
-      : null;
-    const { data: authUser, error: authLookupError } = email && getUserByEmail
-      ? await getUserByEmail(email)
-      : { data: null, error: null };
+    const { user: authUser, error: authLookupError } = email
+      ? await findAuthUserByEmail(admin, email)
+      : { user: null, error: null };
+    if (authLookupError) {
+      console.error("Supabase account lookup failed during account deletion", {
+        status: authLookupError.status,
+        code: authLookupError.code,
+      });
+    }
 
-    const resolvedAuthUserId = authUser?.user?.id ?? user.id;
+    const resolvedAuthUserId = authUser?.id ?? user.id;
 
     let profileRecord: { id?: string } | null = null;
     let profileLookupError: { message?: string; status?: number; code?: string } | null = null;
@@ -374,7 +378,7 @@ export async function deleteAccount(form: FormData): Promise<void> {
     }
     const resolvedProfileUserId = profileRecord?.id ?? resolvedAuthUserId;
 
-    if (authLookupError && !authUser?.user) {
+    if (authLookupError && !authUser) {
       throw authLookupError;
     }
     if (profileLookupError && !profileRecord) {

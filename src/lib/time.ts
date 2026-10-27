@@ -74,5 +74,8 @@ export function getPhilippineTodayKey() {
 
 export function philippineDateToUtcStart(value: string) {
   const [year, month, day] = value.split("-").map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    throw new TypeError("Expected a valid Manila date.");
+  }
   return new Date(Date.UTC(year, month - 1, day, -8)).toISOString();
 }

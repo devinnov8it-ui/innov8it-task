@@ -17,7 +17,20 @@ type CalendarTask = { id: string; title: string; status: TaskStatus; priority: "
 
 function monthKey(year: number, month: number) { return `${year}-${String(month + 1).padStart(2, "0")}`; }
 function dateKey(year: number, month: number, day: number) { return `${monthKey(year, month)}-${String(day).padStart(2, "0")}`; }
-function parseMonth(value: string | undefined) { const [fallbackYear, fallbackMonth] = getPhilippineTodayKey().split("-").map(Number); const fallbackValue = { year: fallbackYear, month: fallbackMonth - 1 }; if (!value) return fallbackValue; const match = /^(\d{4})-(\d{2})$/.exec(value); if (!match) return fallbackValue; const year = Number(match[1]); const month = Number(match[2]); if (month < 1 || month > 12 || year < 2000 || year > 2100) return fallbackValue; return { year, month: month - 1 }; }
+function parseMonth(value: string | undefined) {
+  const today = getPhilippineTodayKey();
+  const fallbackValue = {
+    year: Number(today.slice(0, 4)),
+    month: Number(today.slice(5, 7)) - 1,
+  };
+  if (!value) return fallbackValue;
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!match) return fallbackValue;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12 || year < 2000 || year > 2100) return fallbackValue;
+  return { year, month: month - 1 };
+}
 function formatDate(value: string) { return formatPhilippineDateTime(value); }
 function href(month: string, status?: string) { const params = new URLSearchParams({ month }); if (status) params.set("status", status); return `/dashboard/calendar?${params.toString()}`; }
 

@@ -40,7 +40,7 @@ export default function HomePage() {
               >
                 Open dashboard
               </Link>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton />
             </Show>
           </div>
         </CardContent>

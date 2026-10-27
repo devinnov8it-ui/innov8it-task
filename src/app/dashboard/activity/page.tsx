@@ -13,8 +13,13 @@ type ActivityRow = {
   id: string;
   action: string;
   created_at: string;
-  user: { name: string | null; email: string } | null;
-  task: { id: string; title: string } | null;
+  user: { name: string | null; email: string }[];
+  task: { id: string; title: string }[];
+};
+
+type ActivityEntry = Omit<ActivityRow, "user" | "task"> & {
+  user: ActivityRow["user"][number] | null;
+  task: ActivityRow["task"][number] | null;
 };
 
 type NotificationRow = {
@@ -25,7 +30,7 @@ type NotificationRow = {
   created_at: string;
 };
 
-function actorName(user: ActivityRow["user"]) {
+function actorName(user: ActivityEntry["user"]) {
   return user?.name?.trim() || user?.email?.split("@")[0] || "A team member";
 }
 
@@ -50,7 +55,11 @@ export default async function ActivityPage() {
       .limit(50),
   ]);
 
-  const activity = (data ?? []) as ActivityRow[];
+  const activity: ActivityEntry[] = ((data ?? []) as ActivityRow[]).map((entry) => ({
+    ...entry,
+    user: entry.user[0] ?? null,
+    task: entry.task[0] ?? null,
+  }));
   const notifications = (notificationData ?? []) as NotificationRow[];
   const unreadCount = notifications.filter((notification) => !notification.is_read).length;
 

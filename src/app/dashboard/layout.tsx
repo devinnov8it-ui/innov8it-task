@@ -13,13 +13,12 @@ export default async function ProtectedLayout({
   children: ReactNode;
 }) {
   const user = await requireUser();
-  const metadataName: unknown =
-    user.user_metadata?.name ?? user.user_metadata?.full_name;
+  const metadataName: unknown = user.user_metadata?.name;
   const name =
     typeof metadataName === "string" && metadataName.trim()
       ? metadataName.trim().slice(0, 100)
       : user.email?.split("@")[0] || "Your account";
-  const metadataAvatar = user.user_metadata?.avatar_url ?? user.user_metadata?.picture;
+  const metadataAvatar = user.user_metadata?.avatar_url;
   const avatar = typeof metadataAvatar === "string" ? metadataAvatar : undefined;
 
   const supabase = await createClient({ readOnly: true });
