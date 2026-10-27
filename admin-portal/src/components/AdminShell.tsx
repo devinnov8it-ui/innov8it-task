@@ -17,7 +17,6 @@ const adminLinks = [
 ] as const;
 
 export async function AdminShell({ children, user }: { children: ReactNode; user: AdminIdentity }) {
-  const workspaceUrl = process.env.NEXT_PUBLIC_WORKSPACE_URL ?? "http://127.0.0.1:3000";
   const supabase = createSupabaseAdminClient();
   const [notificationsResult, unreadResult] = await Promise.all([
     supabase.from("notifications").select("id, title, message, is_read, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
@@ -42,7 +41,7 @@ export async function AdminShell({ children, user }: { children: ReactNode; user
             </Link>
           ))}
         </nav>
-        <div className="border-t p-4"><a href={workspaceUrl} className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"><ArrowLeft className="size-4" aria-hidden="true" />Workspace app</a></div>
+        <div className="border-t p-4"><a href="/" className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"><ArrowLeft className="size-4" aria-hidden="true" />Workspace app</a></div>
       </aside>
 
       <div className="min-w-0 lg:pl-64">
@@ -54,7 +53,7 @@ export async function AdminShell({ children, user }: { children: ReactNode; user
               unreadCount={unreadResult.count ?? 0}
               loadError={notificationsError}
             />
-            <a href={workspaceUrl} className="inline-flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"><ArrowLeft className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Workspace app</span><span className="sm:hidden">Workspace</span></a>
+            <a href="/" className="inline-flex min-h-10 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted"><ArrowLeft className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Workspace app</span><span className="sm:hidden">Workspace</span></a>
           </div>
         </header>
         <nav aria-label="Admin sections" className="flex gap-2 overflow-x-auto border-b bg-card/55 px-4 py-2 lg:hidden">

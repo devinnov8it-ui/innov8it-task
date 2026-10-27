@@ -20,14 +20,14 @@ export default function AdminSignInPage() {
           <Suspense fallback={<div className="min-h-96" aria-label="Loading sign in" />}>
             <SignIn
               routing="path"
-              path="/sign-in"
+              path="/admin/sign-in"
               forceRedirectUrl="/admin"
-              signUpUrl={`${process.env.NEXT_PUBLIC_WORKSPACE_URL ?? "http://127.0.0.1:3000"}/sign-up`}
+              signUpUrl="/sign-up"
             />
           </Suspense>
         </div>
         <p className="text-center text-sm text-muted-foreground">
-          Need the workspace? <Link href={process.env.NEXT_PUBLIC_WORKSPACE_URL ?? "http://127.0.0.1:3000"} className="font-medium text-primary hover:underline">Open workspace</Link>
+          Need the workspace? <Link href="/" className="font-medium text-primary hover:underline">Open workspace</Link>
         </p>
       </div>
     </main>

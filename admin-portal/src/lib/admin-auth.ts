@@ -13,11 +13,11 @@ export type AdminIdentity = {
 
 export async function requireAdmin(): Promise<AdminIdentity> {
   const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  if (!userId) redirect("/admin/sign-in");
 
   const clerkUser = await currentUser();
   const email = clerkUser?.primaryEmailAddress?.emailAddress;
-  if (!email) redirect("/access-denied");
+  if (!email) redirect("/admin/access-denied");
 
   const supabase = createSupabaseAdminClient();
   const { data: profile, error } = await supabase
@@ -27,7 +27,7 @@ export async function requireAdmin(): Promise<AdminIdentity> {
     .maybeSingle();
 
   if (error || !profile || (profile.role !== "OWNER" && profile.role !== "ADMIN")) {
-    redirect("/access-denied");
+    redirect("/admin/access-denied");
   }
 
   return {

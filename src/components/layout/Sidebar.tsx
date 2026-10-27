@@ -65,9 +65,7 @@ export function Sidebar({
           </p>
         )}
         {items.filter((item) => !item.adminOnly || isAdmin).map(({ label, icon: Icon, href: itemHref, external }) => {
-          const href = itemHref
-            ? itemHref === "/dashboard" ? dashboardHref : itemHref === "/admin" ? process.env.NEXT_PUBLIC_ADMIN_PORTAL_URL || "http://localhost:3001" : itemHref
-            : undefined;
+          const href = itemHref === "/dashboard" ? dashboardHref : itemHref;
           const content = (
             <>
               <Icon className="size-5 shrink-0" aria-hidden="true" />
