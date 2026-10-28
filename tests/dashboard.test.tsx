@@ -56,7 +56,11 @@ it("shows the admin navigation only for administrators", () => {
   expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
   cleanup();
   setup(true);
-  expect(screen.getByRole("link", { name: "Admin" })).toBeTruthy();
+  const adminLink = screen.getByRole("link", { name: "Admin" });
+  expect(adminLink.getAttribute("href")).toBe(
+    "https://innov8it-task-manager-k4ea.vercel.app/admin",
+  );
+  expect(adminLink.getAttribute("target")).toBe("_blank");
 });
 
 it("collapses and expands the desktop sidebar without losing accessible navigation names", async () => {

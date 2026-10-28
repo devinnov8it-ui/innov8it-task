@@ -12,6 +12,7 @@ import {
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ADMIN_PORTAL_URL } from "@/lib/admin-portal";
 import type { ReactNode } from "react";
 const items = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -20,7 +21,7 @@ const items = [
   { label: "Activity", icon: Activity, href: "/dashboard/activity" },
   { label: "Calendar", icon: CalendarDays, href: "/dashboard/calendar" },
   { label: "Analytics", icon: ChartNoAxesCombined, href: "/dashboard/analytics" },
-  { label: "Admin", icon: ShieldCheck, href: "/admin", adminOnly: true, external: true },
+  { label: "Admin", icon: ShieldCheck, href: ADMIN_PORTAL_URL, adminOnly: true, external: true },
   { label: "Settings", icon: Settings, href: "/dashboard/settings" },
 ];
 export function Sidebar({

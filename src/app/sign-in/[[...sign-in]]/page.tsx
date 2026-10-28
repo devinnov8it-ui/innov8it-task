@@ -3,6 +3,7 @@ import { SignIn } from "@clerk/nextjs";
 import { DeletedSessionRecovery } from "@/features/auth/components/DeletedSessionRecovery";
 import { getAppOrigin } from "@/features/auth/config";
 import { safeNext } from "@/features/auth/validation";
+import { ADMIN_PORTAL_URL } from "@/lib/admin-portal";
 
 function getSignInRedirect(value?: string) {
   if (!value) return "/dashboard";
@@ -54,7 +55,7 @@ export default async function SignInPage({
           <SignIn forceRedirectUrl={redirectUrl} />
         )}
         <p className="text-center text-sm text-muted-foreground">
-          Administrator? <Link href="/admin/sign-in" className="font-medium text-primary hover:underline">Admin portal sign in</Link>
+          Administrator? <Link href={ADMIN_PORTAL_URL} className="font-medium text-primary hover:underline">Admin portal sign in</Link>
         </p>
       </div>
     </div>
